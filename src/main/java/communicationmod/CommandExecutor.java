@@ -32,15 +32,15 @@ public class CommandExecutor {
 
     public static boolean executeCommand(String command) throws InvalidCommandException {
         command = command.toLowerCase();
-        String [] tokens = command.split("\\s+");
-        if(tokens.length == 0) {
+        String[] tokens = command.split("\\s+");
+        if (tokens.length == 0) {
             return false;
         }
-        if (!isCommandAvailable(tokens[0])) {
+        if (!isCommandAvailable(tokens[0]) && !tokens[0].equalsIgnoreCase("start")) {
             throw new InvalidCommandException("Invalid command: " + tokens[0] + ". Possible commands: " + getAvailableCommands());
         }
         String command_tail = command.substring(tokens[0].length());
-        switch(tokens[0]) {
+        switch (tokens[0]) {
             case "play":
                 executePlayCommand(tokens);
                 return true;
@@ -118,7 +118,7 @@ public class CommandExecutor {
     }
 
     public static boolean isCommandAvailable(String command) {
-        if(command.equals("confirm") || command.equalsIgnoreCase("proceed")) {
+        if (command.equals("confirm") || command.equalsIgnoreCase("proceed")) {
             return isConfirmCommandAvailable();
         } else if (command.equals("skip") || command.equals("cancel") || command.equals("return") || command.equals("leave")) {
             return isCancelCommandAvailable();
@@ -132,8 +132,8 @@ public class CommandExecutor {
     }
 
     private static boolean isPlayCommandAvailable() {
-        if(isInDungeon()) {
-            if(AbstractDungeon.getCurrRoom().phase == AbstractRoom.RoomPhase.COMBAT && !AbstractDungeon.isScreenUp) {
+        if (isInDungeon()) {
+            if (AbstractDungeon.getCurrRoom().phase == AbstractRoom.RoomPhase.COMBAT && !AbstractDungeon.isScreenUp) {
                 // Play command is not available if none of the cards are playable.
                 // TODO: this does not check the case where there is no legal target for a target card.
                 for (AbstractCard card : AbstractDungeon.player.hand.group) {
@@ -151,7 +151,7 @@ public class CommandExecutor {
     }
 
     public static boolean isChooseCommandAvailable() {
-        if(isInDungeon()) {
+        if (isInDungeon()) {
             return !isPlayCommandAvailable() && !ChoiceScreenUtils.getCurrentChoiceList().isEmpty();
         } else {
             return false;
@@ -159,9 +159,9 @@ public class CommandExecutor {
     }
 
     public static boolean isPotionCommandAvailable() {
-        if(isInDungeon()) {
-            for(AbstractPotion potion : AbstractDungeon.player.potions) {
-                if(!(potion instanceof PotionSlot)) {
+        if (isInDungeon()) {
+            for (AbstractPotion potion : AbstractDungeon.player.potions) {
+                if (!(potion instanceof PotionSlot)) {
                     return true;
                 }
             }
@@ -170,7 +170,7 @@ public class CommandExecutor {
     }
 
     public static boolean isConfirmCommandAvailable() {
-        if(isInDungeon()) {
+        if (isInDungeon()) {
             return ChoiceScreenUtils.isConfirmButtonAvailable();
         } else {
             return false;
@@ -178,7 +178,7 @@ public class CommandExecutor {
     }
 
     public static boolean isCancelCommandAvailable() {
-        if(isInDungeon()) {
+        if (isInDungeon()) {
             return ChoiceScreenUtils.isCancelButtonAvailable();
         } else {
             return false;
@@ -191,10 +191,11 @@ public class CommandExecutor {
 
     private static void executeStateCommand() {
         CommunicationMod.mustSendGameState = true;
+//        GameStateListener.registerStateChange();
     }
 
     private static void executePlayCommand(String[] tokens) throws InvalidCommandException {
-        if(tokens.length < 2) {
+        if (tokens.length < 2) {
             throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.MISSING_ARGUMENT);
         }
         int card_index;
@@ -203,14 +204,14 @@ public class CommandExecutor {
         } catch (NumberFormatException e) {
             throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.INVALID_ARGUMENT, tokens[1]);
         }
-        if(card_index == 0) {
+        if (card_index == 0) {
             card_index = 10;
         }
-        if((card_index < 1) || (card_index > AbstractDungeon.player.hand.size())) {
+        if ((card_index < 1) || (card_index > AbstractDungeon.player.hand.size())) {
             throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.OUT_OF_BOUNDS, Integer.toString(card_index));
         }
         int monster_index = -1;
-        if(tokens.length == 3) {
+        if (tokens.length == 3) {
             try {
                 monster_index = Integer.parseInt(tokens[2]);
             } catch (NumberFormatException e) {
@@ -225,12 +226,12 @@ public class CommandExecutor {
                 target_monster = AbstractDungeon.getCurrRoom().monsters.monsters.get(monster_index);
             }
         }
-        if((card_index < 1) || (card_index > AbstractDungeon.player.hand.size()) || !(AbstractDungeon.player.hand.group.get(card_index - 1).canUse(AbstractDungeon.player, target_monster))) {
+        if ((card_index < 1) || (card_index > AbstractDungeon.player.hand.size()) || !(AbstractDungeon.player.hand.group.get(card_index - 1).canUse(AbstractDungeon.player, target_monster))) {
             throw new InvalidCommandException("Selected card cannot be played with the selected target.");
         }
         AbstractCard card = AbstractDungeon.player.hand.group.get(card_index - 1);
-        if(card.target == AbstractCard.CardTarget.ENEMY || card.target == AbstractCard.CardTarget.SELF_AND_ENEMY) {
-            if(target_monster == null) {
+        if (card.target == AbstractCard.CardTarget.ENEMY || card.target == AbstractCard.CardTarget.SELF_AND_ENEMY) {
+            if (target_monster == null) {
                 throw new InvalidCommandException("Selected card requires an enemy target.");
             }
             AbstractDungeon.actionManager.cardQueue.add(new CardQueueItem(card, target_monster));
@@ -245,20 +246,20 @@ public class CommandExecutor {
 
     private static void executeChooseCommand(String[] tokens) throws InvalidCommandException {
         ArrayList<String> validChoices = ChoiceScreenUtils.getCurrentChoiceList();
-        if(validChoices.size() == 0) {
+        if (validChoices.size() == 0) {
             throw new InvalidCommandException("The choice command is not implemented on this screen.");
         }
         int choice_index = getValidChoiceIndex(tokens, validChoices);
         ChoiceScreenUtils.executeChoice(choice_index);
     }
 
-    private static void executePotionCommand(String[] tokens) throws  InvalidCommandException {
+    private static void executePotionCommand(String[] tokens) throws InvalidCommandException {
         int potion_index;
         boolean use;
         if (tokens.length < 3) {
             throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.MISSING_ARGUMENT);
         }
-        if(tokens[1].equals("use")) {
+        if (tokens[1].equals("use")) {
             use = true;
         } else if (tokens[1].equals("discard")) {
             use = false;
@@ -270,17 +271,17 @@ public class CommandExecutor {
         } catch (NumberFormatException e) {
             throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.INVALID_ARGUMENT, tokens[2]);
         }
-        if(potion_index < 0 || potion_index >= AbstractDungeon.player.potionSlots) {
+        if (potion_index < 0 || potion_index >= AbstractDungeon.player.potionSlots) {
             throw new InvalidCommandException("Potion index out of bounds.");
         }
         AbstractPotion selectedPotion = AbstractDungeon.player.potions.get(potion_index);
-        if(selectedPotion instanceof PotionSlot) {
+        if (selectedPotion instanceof PotionSlot) {
             throw new InvalidCommandException("No potion in the selected slot.");
         }
-        if(use && !selectedPotion.canUse()) {
+        if (use && !selectedPotion.canUse()) {
             throw new InvalidCommandException("Selected potion cannot be used.");
         }
-        if(!use && !selectedPotion.canDiscard()) {
+        if (!use && !selectedPotion.canDiscard()) {
             throw new InvalidCommandException("Selected potion cannot be discarded.");
         }
         int monster_index = -1;
@@ -328,31 +329,31 @@ public class CommandExecutor {
         boolean seedSet = false;
         long seed = 0;
         AbstractPlayer.PlayerClass selectedClass = null;
-        for(AbstractPlayer.PlayerClass playerClass : AbstractPlayer.PlayerClass.values()) {
-            if(playerClass.name().equalsIgnoreCase(tokens[1])) {
+        for (AbstractPlayer.PlayerClass playerClass : AbstractPlayer.PlayerClass.values()) {
+            if (playerClass.name().equalsIgnoreCase(tokens[1])) {
                 selectedClass = playerClass;
             }
         }
         // Better to allow people to specify the character as "silent" rather than requiring "the_silent"
-        if(tokens[1].equalsIgnoreCase("silent")) {
+        if (tokens[1].equalsIgnoreCase("silent")) {
             selectedClass = AbstractPlayer.PlayerClass.THE_SILENT;
         }
-        if(selectedClass == null) {
+        if (selectedClass == null) {
             throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.INVALID_ARGUMENT, tokens[1]);
         }
-        if(tokens.length >= 3) {
+        if (tokens.length >= 3) {
             try {
                 ascensionLevel = Integer.parseInt(tokens[2]);
             } catch (NumberFormatException e) {
                 throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.INVALID_ARGUMENT, tokens[2]);
             }
-            if(ascensionLevel < 0 || ascensionLevel > 20) {
+            if (ascensionLevel < 0 || ascensionLevel > 20) {
                 throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.OUT_OF_BOUNDS, tokens[2]);
             }
         }
-        if(tokens.length >= 4) {
+        if (tokens.length >= 4) {
             String seedString = tokens[3].toUpperCase();
-            if(!seedString.matches("^[A-Z0-9]+$")) {
+            if (!seedString.matches("^[A-Z0-9]+$")) {
                 throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.INVALID_ARGUMENT, seedString);
             }
             seedSet = true;
@@ -364,7 +365,7 @@ public class CommandExecutor {
                 seedSet = false;
             }
         }
-        if(!seedSet) {
+        if (!seedSet) {
             seed = SeedHelper.generateUnoffensiveSeed(new Random(System.nanoTime()));
         }
         Settings.seed = seed;
@@ -396,7 +397,7 @@ public class CommandExecutor {
             } catch (NumberFormatException e) {
                 throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.INVALID_ARGUMENT, tokens[2]);
             }
-            if(timeout < 0) {
+            if (timeout < 0) {
                 throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.OUT_OF_BOUNDS, tokens[2]);
             }
         }
@@ -425,7 +426,7 @@ public class CommandExecutor {
         }
         x = x * Settings.scale;
         y = y * Settings.scale;
-        Gdx.input.setCursorPosition((int)x, (int)y);
+        Gdx.input.setCursorPosition((int) x, (int) y);
         InputHelper.updateFirst();
         String token1 = tokens[1].toUpperCase();
         if (token1.equals("LEFT")) {
@@ -445,7 +446,7 @@ public class CommandExecutor {
             } catch (NumberFormatException e) {
                 throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.INVALID_ARGUMENT, tokens[4]);
             }
-            if(timeout < 0) {
+            if (timeout < 0) {
                 throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.OUT_OF_BOUNDS, tokens[4]);
             }
         }
@@ -462,7 +463,7 @@ public class CommandExecutor {
         } catch (NumberFormatException e) {
             throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.INVALID_ARGUMENT, tokens[1]);
         }
-        if(timeout < 0) {
+        if (timeout < 0) {
             throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.OUT_OF_BOUNDS, tokens[1]);
         }
         GameStateListener.setTimeout(timeout);
@@ -470,7 +471,7 @@ public class CommandExecutor {
 
     private static int getKeycode(String keyName) {
         InputAction action;
-        switch(keyName) {
+        switch (keyName) {
             case "CONFIRM":
                 action = InputActionSet.confirm;
                 break;
@@ -551,12 +552,12 @@ public class CommandExecutor {
     }
 
     private static int getValidChoiceIndex(String[] tokens, ArrayList<String> validChoices) throws InvalidCommandException {
-        if(tokens.length < 2) {
+        if (tokens.length < 2) {
             throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.MISSING_ARGUMENT, " A choice is required.");
         }
         String choice = merge_arguments(tokens);
         int choice_index = -1;
-        if(validChoices.contains(choice)) {
+        if (validChoices.contains(choice)) {
             choice_index = validChoices.indexOf(choice);
         } else {
             try {
@@ -564,7 +565,7 @@ public class CommandExecutor {
             } catch (NumberFormatException e) {
                 throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.INVALID_ARGUMENT, choice);
             }
-            if(choice_index < 0 || choice_index >= validChoices.size()) {
+            if (choice_index < 0 || choice_index >= validChoices.size()) {
                 throw new InvalidCommandException(tokens, InvalidCommandException.InvalidCommandFormat.OUT_OF_BOUNDS, choice);
             }
         }
@@ -573,15 +574,14 @@ public class CommandExecutor {
 
     private static String merge_arguments(String[] tokens) {
         StringBuilder builder = new StringBuilder();
-        for(int i = 1; i < tokens.length; i++) {
+        for (int i = 1; i < tokens.length; i++) {
             builder.append(tokens[i]);
-            if(i != tokens.length - 1) {
+            if (i != tokens.length - 1) {
                 builder.append(' ');
             }
         }
         return builder.toString();
     }
-
 
 
 }
